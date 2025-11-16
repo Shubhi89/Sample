@@ -15,3 +15,60 @@ body {
 .list-group-item {
     padding: 1rem 0.5rem; /* A bit less padding than the card body */
 }
+
+.bg-login-image {
+    /* You can replace this with any image you like! */
+    background: url('logIn.jpg');
+    background-position: center;
+    background-size: cover;
+}
+
+/* Fix for rounded corners */
+.card {
+    overflow: hidden;
+}
+
+/* ... (keep your existing styles: body, .auth-container, .bg-login-image, etc.) */
+
+.bg-register-image {
+    /* You can use a different image or the same one! */
+    background: url('signUp.jpg');
+    background-position: center;
+    background-size: cover;
+}
+
+.dashboard-bg {
+    position: relative;
+    z-index: 1;
+}
+
+/* This creates a dark, semi-transparent layer over the image */
+.dashboard-bg::before {
+    content: "";
+    position: fixed; /* Use 'fixed' to cover the whole viewport */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    
+    /* The image goes here */
+    background-image: url('dashboard.jpg');
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    
+    /* This is the overlay: 70% black */
+    background-color: rgba(0, 0, 0, 0.7);
+    
+    /* This blends the color and image */
+    background-blend-mode: multiply;
+
+    /* Puts the overlay behind your content */
+    z-index: -1;
+}
+
+.footer-link {
+    text-decoration: none;
+    color: blue;
+    font-size: medium;
+}
