@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Expense Dashboard | Expense Manager</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <h2>Expense Dashboard</h2>
+        <button id="logoutBtn" class="logout">Logout</button>
+
+        <!-- Expense Form -->
+        <div class="expense-form">
+            <h3>Add New Expense</h3>
+            <form id="expenseForm">
+                <input type="text" id="title" placeholder="Expense Title" required>
+                <input type="number" id="amount" placeholder="Amount (₹)" required>
+                <input type="text" id="category" placeholder="Category" required>
+                <button type="submit">Add Expense</button>
+            </form>
+        </div>
+
+        <!-- Expense List -->
+        <div class="expense-list">
+            <h3>Your Expenses</h3>
+            <ul id="expenseItems"></ul>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
