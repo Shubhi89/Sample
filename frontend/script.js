@@ -54,31 +54,37 @@ document.addEventListener("DOMContentLoaded", () => {
     const expenseItems = document.getElementById("expenseItems");
     const logoutBtn = document.getElementById("logoutBtn");
     const token = localStorage.getItem("token");
-    
+
+    // --- State variables (from previous step) ---
     let isEditing = false;
     let editExpenseId = null;
     let allExpenses = []; 
 
     // Redirect if not logged in
-    if (document.body.contains(document.querySelector('.dashboard-container')) && !token) {
+    if (document.body.contains(expenseForm) && !token) {
         alert("Please login first!");
         window.location.href = "index.html";
     }
 
+    // --- Helper function to reset the form ---
     function resetForm() {
         expenseForm.reset(); 
         isEditing = false;
         editExpenseId = null;
-        expenseForm.querySelector("button[type='submit']").textContent = "Add Expense";
+        
+        // --- UPDATED to style new button ---
+        const submitBtn = expenseForm.querySelector("button[type='submit']");
+        submitBtn.textContent = "Add Expense";
+        submitBtn.classList.remove("btn-warning"); // Remove update color
+        submitBtn.classList.add("btn-primary");   // Add default color
 
-        // Remove the cancel button if it exists
         const cancelBtn = document.getElementById("cancelEditBtn");
         if (cancelBtn) {
             cancelBtn.remove();
         }
     }
 
-    // Add Expense
+    // --- Form handles ADD and EDIT ---
     if (expenseForm) {
         expenseForm.addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -91,11 +97,9 @@ document.addEventListener("DOMContentLoaded", () => {
             let method = "";
 
             if (isEditing) {
-                // --- UPDATE LOGIC ---
                 url = `http://localhost:5000/api/expense/${editExpenseId}`;
                 method = "PUT";
             } else {
-                // --- ADD LOGIC (from our fix) ---
                 url = "http://localhost:5000/api/expense/add";
                 method = "POST";
             }
@@ -112,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             if (res.ok) {
                 alert(isEditing ? "Expense updated!" : "Expense added!");
-                resetForm(); // Use new reset function
+                resetForm();
                 loadExpenses();
             } else {
                 alert(data.message || "Failed to submit expense!");
@@ -120,34 +124,52 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Load Expenses
+    // --- UPDATED: Load Expenses ---
     async function loadExpenses() {
         const res = await fetch(`http://localhost:5000/api/expense/`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
         
-        allExpenses = await res.json(); // <-- Store expenses
-        expenseItems.innerHTML = "";
+        allExpenses = await res.json(); 
+        expenseItems.innerHTML = ""; // Clear old items
         
+        if (allExpenses.length === 0) {
+            expenseItems.innerHTML = "<li class='list-group-item text-center text-muted'>No expenses found.</li>";
+            return;
+        }
+
         allExpenses.forEach(exp => {
             const li = document.createElement("li");
-            // --- Add Edit Button ---
+            // --- NEW: Create Bootstrap list item ---
+            li.className = "list-group-item d-flex justify-content-between align-items-center";
             li.innerHTML = `
-                <span>${exp.title} - ₹${exp.amount} (${exp.category})</span>
                 <div>
-                    <button class="edit-btn" data-id="${exp._id}">Edit</button>
-                    <button class="delete-btn" data-id="${exp._id}">X</button>
+                    <strong class="d-block">${exp.title}</strong>
+                    <small class="text-muted">${exp.category} - ₹${exp.amount}</small>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary edit-btn" data-id="${exp._id}">
+                        <i class="fas fa-pencil-alt"></i> </button>
+                    <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${exp._id}">
+                        <i class="fas fa-trash"></i> </button>
                 </div>
             `;
             expenseItems.appendChild(li);
         });
     }
 
-    // --- UPDATED: Click listener now handles DELETE and EDIT ---
+    // --- CRITICAL UPDATE: Click listener ---
     expenseItems.addEventListener("click", async (e) => {
-        // DELETE LOGIC (no change)
-        if (e.target.classList.contains("delete-btn")) {
-            const id = e.target.dataset.id;
+        
+        // Use .closest() to find the button, even if the icon (<i>) was clicked
+        const editBtn = e.target.closest(".edit-btn");
+        const deleteBtn = e.target.closest(".delete-btn");
+
+        // --- DELETE LOGIC ---
+        if (deleteBtn) {
+            const id = deleteBtn.dataset.id;
+            if (!confirm("Are you sure you want to delete this expense?")) return; // Added confirm
+
             const res = await fetch(`http://localhost:5000/api/expense/${id}`, {
                 method: "DELETE",
                 headers: { "Authorization": `Bearer ${token}` }
@@ -158,14 +180,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
         
-        // --- NEW: EDIT LOGIC ---
-        if (e.target.classList.contains("edit-btn")) {
-            const id = e.target.dataset.id;
-            // Find the expense from our stored array
+        // --- EDIT LOGIC ---
+        if (editBtn) {
+            const id = editBtn.dataset.id;
             const expenseToEdit = allExpenses.find(exp => exp._id === id);
             if (!expenseToEdit) return;
 
-            // 1. Populate the form
+            // 1. Populate form
             document.getElementById("title").value = expenseToEdit.title;
             document.getElementById("amount").value = expenseToEdit.amount;
             document.getElementById("category").value = expenseToEdit.category;
@@ -174,23 +195,28 @@ document.addEventListener("DOMContentLoaded", () => {
             isEditing = true;
             editExpenseId = id;
 
-            // 3. Change button text
-            expenseForm.querySelector("button[type='submit']").textContent = "Update Expense";
+            // 3. Change button text and color
+            const submitBtn = expenseForm.querySelector("button[type='submit']");
+            submitBtn.textContent = "Update Expense";
+            submitBtn.classList.remove("btn-primary");
+            submitBtn.classList.add("btn-warning"); // Yellow for update
 
-            // 4. Add a Cancel button
+            // 4. Add Cancel button
             let cancelBtn = document.getElementById("cancelEditBtn");
             if (!cancelBtn) {
                 cancelBtn = document.createElement("button");
                 cancelBtn.textContent = "Cancel";
                 cancelBtn.id = "cancelEditBtn";
-                cancelBtn.type = "button"; // Prevents form submission
-                cancelBtn.onclick = resetForm; // Calls our reset function
+                cancelBtn.type = "button";
+                // --- NEW: Add Bootstrap classes ---
+                cancelBtn.className = "btn btn-secondary w-100 mt-2"; 
+                cancelBtn.onclick = resetForm;
                 expenseForm.appendChild(cancelBtn);
             }
         }
     });
 
-    // Logout (no change)
+    // --- Logout (no change) ---
     if (logoutBtn) {
         logoutBtn.addEventListener("click", () => {
             localStorage.clear();
