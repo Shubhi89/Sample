@@ -54,12 +54,28 @@ document.addEventListener("DOMContentLoaded", () => {
     const expenseItems = document.getElementById("expenseItems");
     const logoutBtn = document.getElementById("logoutBtn");
     const token = localStorage.getItem("token");
-    const userId = localStorage.getItem("userId");
+    
+    let isEditing = false;
+    let editExpenseId = null;
+    let allExpenses = []; 
 
     // Redirect if not logged in
     if (document.body.contains(document.querySelector('.dashboard-container')) && !token) {
         alert("Please login first!");
         window.location.href = "index.html";
+    }
+
+    function resetForm() {
+        expenseForm.reset(); 
+        isEditing = false;
+        editExpenseId = null;
+        expenseForm.querySelector("button[type='submit']").textContent = "Add Expense";
+
+        // Remove the cancel button if it exists
+        const cancelBtn = document.getElementById("cancelEditBtn");
+        if (cancelBtn) {
+            cancelBtn.remove();
+        }
     }
 
     // Add Expense
@@ -70,22 +86,36 @@ document.addEventListener("DOMContentLoaded", () => {
             const amount = document.getElementById("amount").value;
             const category = document.getElementById("category").value;
 
-            const res = await fetch("http://localhost:5000/api/expense/add", {
-                method: "POST",
+            const expenseData = { title, amount, category };
+            let url = "";
+            let method = "";
+
+            if (isEditing) {
+                // --- UPDATE LOGIC ---
+                url = `http://localhost:5000/api/expense/${editExpenseId}`;
+                method = "PUT";
+            } else {
+                // --- ADD LOGIC (from our fix) ---
+                url = "http://localhost:5000/api/expense/add";
+                method = "POST";
+            }
+            
+            const res = await fetch(url, {
+                method: method,
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ userId, title, amount, category })
+                body: JSON.stringify(expenseData)
             });
-
+            
             const data = await res.json();
             if (res.ok) {
-                alert("Expense added!");
-                expenseForm.reset();
+                alert(isEditing ? "Expense updated!" : "Expense added!");
+                resetForm(); // Use new reset function
                 loadExpenses();
             } else {
-                alert(data.message || "Failed to add expense!");
+                alert(data.message || "Failed to submit expense!");
             }
         });
     }
@@ -95,20 +125,27 @@ document.addEventListener("DOMContentLoaded", () => {
         const res = await fetch(`http://localhost:5000/api/expense/`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
-        const data = await res.json();
+        
+        allExpenses = await res.json(); // <-- Store expenses
         expenseItems.innerHTML = "";
-        data.forEach(exp => {
+        
+        allExpenses.forEach(exp => {
             const li = document.createElement("li");
+            // --- Add Edit Button ---
             li.innerHTML = `
-        ${exp.title} - ₹${exp.amount} (${exp.category})
-        <button class="delete-btn" data-id="${exp._id}">X</button>
-      `;
+                <span>${exp.title} - ₹${exp.amount} (${exp.category})</span>
+                <div>
+                    <button class="edit-btn" data-id="${exp._id}">Edit</button>
+                    <button class="delete-btn" data-id="${exp._id}">X</button>
+                </div>
+            `;
             expenseItems.appendChild(li);
         });
     }
 
-    // Delete Expense
+    // --- UPDATED: Click listener now handles DELETE and EDIT ---
     expenseItems.addEventListener("click", async (e) => {
+        // DELETE LOGIC (no change)
         if (e.target.classList.contains("delete-btn")) {
             const id = e.target.dataset.id;
             const res = await fetch(`http://localhost:5000/api/expense/${id}`, {
@@ -120,9 +157,40 @@ document.addEventListener("DOMContentLoaded", () => {
                 loadExpenses();
             }
         }
+        
+        // --- NEW: EDIT LOGIC ---
+        if (e.target.classList.contains("edit-btn")) {
+            const id = e.target.dataset.id;
+            // Find the expense from our stored array
+            const expenseToEdit = allExpenses.find(exp => exp._id === id);
+            if (!expenseToEdit) return;
+
+            // 1. Populate the form
+            document.getElementById("title").value = expenseToEdit.title;
+            document.getElementById("amount").value = expenseToEdit.amount;
+            document.getElementById("category").value = expenseToEdit.category;
+
+            // 2. Set editing state
+            isEditing = true;
+            editExpenseId = id;
+
+            // 3. Change button text
+            expenseForm.querySelector("button[type='submit']").textContent = "Update Expense";
+
+            // 4. Add a Cancel button
+            let cancelBtn = document.getElementById("cancelEditBtn");
+            if (!cancelBtn) {
+                cancelBtn = document.createElement("button");
+                cancelBtn.textContent = "Cancel";
+                cancelBtn.id = "cancelEditBtn";
+                cancelBtn.type = "button"; // Prevents form submission
+                cancelBtn.onclick = resetForm; // Calls our reset function
+                expenseForm.appendChild(cancelBtn);
+            }
+        }
     });
 
-    // Logout
+    // Logout (no change)
     if (logoutBtn) {
         logoutBtn.addEventListener("click", () => {
             localStorage.clear();
@@ -131,8 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Load data on start
+    // Load data on start (no change)
     if (expenseItems) loadExpenses();
 });
-
-
